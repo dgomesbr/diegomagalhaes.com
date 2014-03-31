@@ -1,28 +1,32 @@
 {{!< default}}
 
-<header id="site-head">
-    {{#if @blog.logo}}<a id="blog-logo" href="{{@blog.url}}"><div class="bloglogo" style="background: url({{@blog.logo}})"></div></a>{{/if}}
-    <h1 class="blog-title"><a href="{{@blog.url}}">{{@blog.title}}</a></h1>
-    <h2 class="blog-description">{{@blog.description}}</h2>
-</header>
+<aside role="banner" class="cover">
+  <div {{#if @blog.cover}}data-load-image="{{@blog.cover}}"{{/if}} class="cover-image"></div>
+  <div class="cover-container">
+    {{#if @blog.logo}}
+      <a href="{{@blog.url}}" class="cover-logo" data-pjax>
+        <img src="{{@blog.logo}}" alt="Blog Logo">
+      </a>
+    {{/if}}
+    <h1 class="cover-title">{{@blog.title}}</h1>
+    <p class="cover-description">{{@blog.description}}</p>
+  </div>
+</aside>
 
-<main class="content" role="main">
+<section class="wrapper" tabindex="0">
+  <div class="wrapper-container">
+    {{> custom/featured this}}
 
-    {{#foreach posts}}
+    <section class="post-list">
+      {{#foreach posts}}
+        {{> post/list this}}
+      {{/foreach}}
+    </section>
 
-    <article class="preview">
-        <header>
-            <h1 class="post-title"><a href="{{url}}">{{{title}}}</a></h1>
-            <div class="post-meta"><time datetime="{{date format='YYYY-MM-DD'}}">{{date format="dddd, MMMM DD, YYYY"}}</time></div>
-        </header>
-        <section class="post-excerpt">
-            <p>{{excerpt}}&hellip;</p>
-            <p class="readmore"><a href="{{url}}">Read this article <i class="fa fa-chevron-circle-right"></i></a></p>
-        </section>
-    </article>
+    {{#if pagination}}
+      {{pagination}}
+    {{/if}}
 
-    {{/foreach}}
-
-    {{pagination}}
-
-</main>
+    {{> footer this}}
+  </div>
+</section>

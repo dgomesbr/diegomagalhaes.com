@@ -1,49 +1,103 @@
-# Vapor
+# Ghostium [![Build Status](https://travis-ci.org/oswaldoacauan/ghostium.png)](https://travis-ci.org/oswaldoacauan/ghostium) [![Total views](https://sourcegraph.com/api/repos/github.com/oswaldoacauan/ghostium/counters/views.png)](https://sourcegraph.com/github.com/oswaldoacauan/ghostium)
 
-Minimal and responsive with a focus on typography, *Vapor* is a theme that embodies the core concept of [Ghost](http://ghost.org/)&mdash;it fades into the background, bringing the focus to your content.
+![Ghostium](http://i.imgur.com/m5VcTBl.png)
 
-Supports blog and user images; cover images, while supported in the Ghost admin, are not displayed in the theme due to theme's minimal nature and focus on typography.
+> A [Ghost](https://ghost.org/) theme focused on content based on [Medium](https://medium.com) design/ux.
 
-Fonts embedded via Google Fonts, including Roboto Slab, Merriweather, and Open Sans Condensed.
+### [→ Live Demo](http://ghostium.oswaldoacauan.com/)
+### [→ Download](https://github.com/oswaldoacauan/ghostium/archive/master.zip)
 
-The Ghost, Facebook, Twitter, and Google+ icons are trademarks of their respective owners and are from the Casper theme, copyright (c) 2013 Ghost Foundation and released under The MIT License.
+## Table of contents
 
-Other icons provided by [Font Awesome](https://github.com/FortAwesome/Font-Awesome) and released under SIL OFL 1.1.
+* [Features](#features)
+* [Installing](#installing)
+* [Configuring](#configuring)
+* [Roadmap](#roadmap)
+* [Contributing](#contributing)
+* [History](#history)
+* [License](#license)
 
-See *Vapor* in action at [Hipster Ghost](http://hipsterghost.com/).
+## Features
 
-## Modifications
+* Focused on content
+* Fully responsive
+* HTML5 semantics, WAI-ARIA and Rich Snippets(microdata) roles
+* Asynchronous content loading
+* Disqus comments
+* Syntax Highlight with [Prism](http://prismjs.com/)
+* Google Universal Analytics snippet
+* OpenGraph and Twitter Cards meta's
+* Baseline HTML5 features, DNS prefetching, responsive meta
+* One-file CSS/JS for performance
 
-Since 1.3, blog logos and author images must be at least 100px in height and width, but do not need to be 1:1.
+## Installing
 
-Since 1.2, a [LESS](http://lesscss.org) file is included which contains variables allowing you to quickly change the theme's stylesheet. However, I've chosen to exclude `less.js` from the theme and I recommend using a desktop compiler like [LESS.app for Mac](http://incident57.com/less/), [SimpLESS](http://wearekiss.com/simpless), or [Crunch!](http://crunchapp.net/) to process your LESS file.
+### Using Git
+1. Navigate to your Ghost theme directory `ghost/content/themes`
+2. Clone the theme repository using the command below
+```sh
+$ git clone https://github.com/oswaldoacauan/ghostium/ "ghostium"
+```
+3. Restart ghost and log in to your dashboard
+4. In settings under themes select **ghostium** and save
+5. That's all, now its time to [configure](#configuring) your theme
 
-## Releases
 
-See the [changelog](CHANGELOG.md) for release details.
+### Manually
+1. Download the files using the [GitHub .zip download](https://github.com/oswaldoacauan/ghostium/archive/master.zip) option
+2. Unzip the files and rename the folder to `ghostium`
+4. Copy the folder into your Ghost theme directory `ghost/content/themes`
+5. Restart ghost and log in to your dashboard
+6. In settings under themes select **ghostium** and save
+7. That's all, now its time to [configure](#configuring) your theme
 
-| Version | Release Date |
-| :-----: | :----------: |
-| 1.3 | 2014-01-12 |
-| 1.2.1 | 2013-12-14 |
-| 1.2 | 2013-11-10 |
-| 1.1.2 | 2013-11-10 |
-| 1.1.1 | 2013-10-30 |
-| 1.1 | 2013-10-28 |
-| 1.0 | 2013-10-18 |
+## Configuring
 
-## Contributing and Forking
+All configurable files are located in `ghostium/partials/custom`.
 
-*Vapor* is open source and released under the MIT License, and contributions to the code base are welcome and encouraged. Find [more information about contributing here](CONTRIBUTING.md).
+#### config.hbs
 
-## Copyright & License
+Configurable javascript identifiers.
 
-Copyright (c) 2013 Seth Lilly - Released under The MIT License.
+* `ga_ua`: Your [Google Analitycs](https://support.google.com/analytics/answer/1032385) account identifier
+* `disqus_shortname`: Your [Disqus](http://help.disqus.com/customer/portal/articles/466208) unique identifier
 
-## Thanks
+#### meta.hbs
 
-*Update 2013-11-10*: Thanks to everyone who has installed, starred, forked, or otherwise promoted Vapor. This is a labor of love, and it belongs to all of us.
+Configurable meta tags.
 
-Thanks to [@JohnONolan](http://twitter.com/JohnONolan) for [suggesting this project](https://alpha.app.net/johnonolan/post/9574144).
+* `twitter:site`: Used for [Twitter Card](https://dev.twitter.com/docs/cards/markup-reference) identification, the twitter @username of the owner of this card's domain
+* `twitter:creator`: Used for [Twitter Card](https://dev.twitter.com/docs/cards/markup-reference) identification, the twitter @username of the author of this content
+* `google-site-verification`: Used for [Google Webmaster Tools](https://support.google.com/webmasters/answer/35179) identification
+* `fb:admins`: Used for [Facebook Insights](https://developers.facebook.com/docs/insights/‎) identification
 
-And of course, thanks to [@JohnONolan](http://twitter.com/JohnONolan), [@ErisDS](http://twitter.com/ErisDS), and the Ghost team for creating this amazing platform.
+#### navigation.hbs
+
+Your site navigation items, markup template below.
+```html
+<li class="drawer-list-item">
+  <a href="#" title="My awesome menu">
+    My menu
+  </a>
+</li>
+```
+
+## Roadmap
+
+Many features listed here still depend on future implementations in Ghost, take a look at the their [Roadmap](https://github.com/tryghost/ghost/wiki/Roadmap) and [Planned features](https://github.com/tryghost/ghost/wiki/Planned-Features).
+
+- [ ] Cover image for single post
+- [ ] Infinite scroll
+- [ ] Next post cover
+
+## Contributing
+
+If you want to help, please read the [Contributing](https://github.com/oswaldoacauan/ghostium/blob/master/CONTRIBUTING.md) guide.
+
+## History
+
+For detailed history, see [Changelog](https://github.com/oswaldoacauan/ghostium/blob/master/CHANGELOG.md).
+
+## License
+
+[MIT License](http://oswaldoacauan.mit-license.org/) © Oswaldo Acauan
