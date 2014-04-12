@@ -72,6 +72,15 @@
       s.src = '//' + disqus_shortname + '.disqus.com/count.js';
       (document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
       }());
+
+      var pageText = $('.post-body').text().replace(/\r?\n/g,'');
+      var read_time = function(text){
+        var minutes = Math.floor(text.split(' ').length / 200 )
+        if(minutes === 0) minutes = 1
+        return minutes;
+      }
+      var readtime_el = $('<li class="post-meta-item"> ' + read_time(pageText) + ' min read</li>');
+      $('.post-meta-list').append(readtime_el);      
     </script>
   </body>
 </html>
