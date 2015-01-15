@@ -1,9 +1,10 @@
-/* global FastClick: false, DISQUS: false, DISQUSWIDGETS: false, disqus_identifier:false, ga:false, Drawer: false, ImageLoader: false, NProgress: false, Prism: false */
+/* global FastClick: false, DISQUS: false, DISQUSWIDGETS: true, disqus_identifier:false, ga:false, Drawer: false, ImageLoader: false, Prism: false */
 (function ($, window, document, undefined) {
 
   'use strict';
 
   $(function () {
+    var GHOSTIUM = window.GHOSTIUM;
 
     // Cache a couple of useful elements
     // =================
@@ -11,6 +12,7 @@
         $document = $(document),
         $html     = $(document.documentElement),
         $body     = $(document.body),
+        $head     = $('head'),
         $surface  = $body,
         $content  = $('.content', $surface);
 
@@ -39,39 +41,81 @@
 
     _prismHandler();
 
+    // DISQUS Handlers
+    // =================
+    var _disqusHandler = function() {
+      if(!GHOSTIUM.haveDisqus) return;
+
+      if(typeof DISQUS === 'object' && $('#disqus_thread').length) {
+        DISQUS.reset({
+          reload: true,
+          config: function () {
+            this.page.identifier = disqus_identifier;
+          }
+        });
+      }
+    };
+
+    var _disqusCounterHandler = function() {
+      if(!GHOSTIUM.haveDisqus) {
+        $('[data-disqus-identifier]').parent('li').remove();
+        return;
+      }
+
+      if(typeof DISQUSWIDGETS === 'object') {
+        var $identifiers = $body.find('[data-disqus-identifier]'),
+            $script      = $head.find('script[src*="disqus.com/count-data.js"]');
+
+        var posts = $identifiers
+          .map(function() {
+            return '1=' + encodeURIComponent($(this).data('disqus-identifier'));
+          })
+          .sort()
+          .get()
+        ;
+
+        $script.remove();
+
+        if(posts.length) {
+          $head.append($('<script/>', {
+            async: true,
+            src: $script.attr('src').split('?')[0] + '?' + posts.join('&')
+          }));
+
+          DISQUSWIDGETS.getCount();
+        }
+      }
+    };
+
+    _disqusCounterHandler();
+
+    // GA Handler
+    // =================
+    var _gaHandler = function() {
+      if(!GHOSTIUM.haveGA) return;
+
+      if(typeof ga === 'function') {
+        ga('set', 'location', window.location.href);
+        ga('send', 'pageview');
+      }
+    };
+
     // PJax bindings
     // =================
-    if ($.support.pjax) {
+    if ($.support.pjax && GHOSTIUM.enablePjax) {
       $document.on('pjax:start', function() {
-        NProgress.start();
         $surface.scrollTop(0);
       });
 
       $document.on('pjax:end', function() {
-        if(typeof ga === 'function') {
-          ga('set', 'location', window.location.href);
-          ga('send', 'pageview');
-        }
-
-        if(typeof DISQUS === 'object' && $('#disqus_thread').length) {
-          DISQUS.reset({
-            reload: true,
-            config: function () {
-              this.page.identifier = disqus_identifier;
-            }
-          });
-        }
-
-        if(typeof DISQUSWIDGETS === 'object') {
-          DISQUSWIDGETS.getCount();
-        }
+        _disqusHandler();
+        _gaHandler();
+        _disqusCounterHandler();
+        _prismHandler();
 
         $('[data-load-image]', $content).each(function() {
           ImageLoader.load($(this));
         });
-
-        _prismHandler();
-        NProgress.done();
       });
 
       var _pjaxOptions = {
@@ -183,6 +227,12 @@
     if($body.hasClass('home-template')) {
       $('.wrapper').eq(0).focus();
     }
+
+    // Fix DISQUS iframe does not resize on mobile orientation change
+    // =================
+    $window.on('orientationchange', function(e) {
+      _disqusHandler();
+    });
 
   });
 
