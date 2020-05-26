@@ -1,6 +1,6 @@
 {
   "name": "ghost",
-  "version": "3.16.1",
+  "version": "3.17.1",
   "description": "The professional publishing platform",
   "author": "Ghost Foundation",
   "homepage": "https://ghost.org",
@@ -65,8 +65,8 @@
     "bcryptjs": "2.4.3",
     "bluebird": "3.7.2",
     "body-parser": "1.19.0",
-    "bookshelf": "0.15.2",
-    "bookshelf-relations": "1.3.2",
+    "bookshelf": "1.1.1",
+    "bookshelf-relations": "2.0.1",
     "brute-knex": "4.0.0",
     "bson-objectid": "1.3.0",
     "cheerio": "0.22.0",
@@ -126,7 +126,9 @@
     "semver": "7.3.2",
     "uuid": "8.0.0",
     "validator": "6.3.0",
-    "xml": "1.0.1"
+    "xml": "1.0.1",
+    "ghost-storage-adapter-s3": "^2.8.0",
+    "ghost-storage-cloudinary": "^2.0.2"
   },
   "optionalDependencies": {
     "@tryghost/html-to-mobiledoc": "0.7.0",
