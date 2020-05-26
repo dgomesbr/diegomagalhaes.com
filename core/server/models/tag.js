@@ -1,79 +1,109 @@
-var _              = require('lodash'),
-    Promise        = require('bluebird'),
-    errors         = require('../errors'),
-    ghostBookshelf = require('./base'),
-    sitemap        = require('../data/sitemap'),
+const ghostBookshelf = require('./base');
+const common = require('../lib/common');
 
-    Tag,
-    Tags;
-
-function addPostCount(options, obj) {
-    if (options.include && options.include.indexOf('post_count') > -1) {
-        obj.query('select', 'tags.*');
-        obj.query('count', 'posts_tags.id as post_count');
-        obj.query('leftJoin', 'posts_tags', 'tag_id', 'tags.id');
-        obj.query('groupBy', 'tag_id', 'tags.id');
-
-        options.include = _.pull([].concat(options.include), 'post_count');
-    }
-}
+let Tag;
+let Tags;
 
 Tag = ghostBookshelf.Model.extend({
 
     tableName: 'tags',
 
-    initialize: function () {
-        ghostBookshelf.Model.prototype.initialize.apply(this, arguments);
-
-        this.on('created', function (model) {
-            sitemap.tagAdded(model);
-        });
-        this.on('updated', function (model) {
-            sitemap.tagEdited(model);
-        });
-        this.on('destroyed', function (model) {
-            sitemap.tagDeleted(model);
-        });
+    defaults: function defaults() {
+        return {
+            visibility: 'public'
+        };
     },
 
-    saving: function (newPage, attr, options) {
-         /*jshint unused:false*/
+    emitChange: function emitChange(event, options) {
+        const eventToTrigger = 'tag' + '.' + event;
+        ghostBookshelf.Model.prototype.emitChange.bind(this)(this, eventToTrigger, options);
+    },
 
-        var self = this;
+    onCreated: function onCreated(model, attrs, options) {
+        ghostBookshelf.Model.prototype.onCreated.apply(this, arguments);
 
-        ghostBookshelf.Model.prototype.saving.apply(this, arguments);
+        model.emitChange('added', options);
+    },
 
-        if (this.hasChanged('slug') || !this.get('slug')) {
+    onUpdated: function onUpdated(model, attrs, options) {
+        ghostBookshelf.Model.prototype.onUpdated.apply(this, arguments);
+
+        model.emitChange('edited', options);
+    },
+
+    onDestroyed: function onDestroyed(model, options) {
+        ghostBookshelf.Model.prototype.onDestroyed.apply(this, arguments);
+
+        model.emitChange('deleted', options);
+    },
+
+    onSaving: function onSaving(newTag, attr, options) {
+        const self = this;
+
+        ghostBookshelf.Model.prototype.onSaving.apply(this, arguments);
+
+        // name: #later slug: hash-later
+        if (/^#/.test(newTag.get('name'))) {
+            this.set('visibility', 'internal');
+        }
+
+        if (this.hasChanged('slug') || (!this.get('slug') && this.get('name'))) {
             // Pass the new slug through the generator to strip illegal characters, detect duplicates
             return ghostBookshelf.Model.generateSlug(Tag, this.get('slug') || this.get('name'),
                 {transacting: options.transacting})
-                .then(function (slug) {
+                .then(function then(slug) {
                     self.set({slug: slug});
                 });
         }
     },
 
-    posts: function () {
+    posts: function posts() {
         return this.belongsToMany('Post');
     },
 
-    toJSON: function (options) {
-        var attrs = ghostBookshelf.Model.prototype.toJSON.call(this, options);
+    toJSON: function toJSON(unfilteredOptions) {
+        const options = Tag.filterOptions(unfilteredOptions, 'toJSON');
+        const attrs = ghostBookshelf.Model.prototype.toJSON.call(this, options);
 
+        // @NOTE: this serialization should be moved into api layer, it's not being moved as it's not used
         attrs.parent = attrs.parent || attrs.parent_id;
         delete attrs.parent_id;
 
         return attrs;
+    },
+
+    getAction(event, options) {
+        const actor = this.getActor(options);
+
+        // @NOTE: we ignore internal updates (`options.context.internal`) for now
+        if (!actor) {
+            return;
+        }
+
+        // @TODO: implement context
+        return {
+            event: event,
+            resource_id: this.id || this.previous('id'),
+            resource_type: 'tag',
+            actor_id: actor.id,
+            actor_type: actor.type
+        };
     }
 }, {
-    permittedOptions: function (methodName) {
-        var options = ghostBookshelf.Model.permittedOptions(),
+    orderDefaultOptions: function orderDefaultOptions() {
+        return {};
+    },
 
-            // whitelists for the `options` hash argument on methods, by method name.
-            // these are the only options that can be passed to Bookshelf / Knex.
-            validOptions = {
-                findPage: ['page', 'limit']
-            };
+    permittedOptions: function permittedOptions(methodName) {
+        let options = ghostBookshelf.Model.permittedOptions.call(this, methodName);
+
+        // whitelists for the `options` hash argument on methods, by method name.
+        // these are the only options that can be passed to Bookshelf / Knex.
+        const validOptions = {
+            findAll: ['columns'],
+            findOne: ['columns', 'visibility'],
+            destroy: ['destroyAll']
+        };
 
         if (validOptions[methodName]) {
             options = options.concat(validOptions[methodName]);
@@ -82,111 +112,25 @@ Tag = ghostBookshelf.Model.extend({
         return options;
     },
 
-    /**
-     * ### Find One
-     * @overrides ghostBookshelf.Model.findOne
-     */
-    findOne: function (data, options) {
-        options = options || {};
+    destroy: function destroy(unfilteredOptions) {
+        const options = this.filterOptions(unfilteredOptions, 'destroy', {extraAllowedProperties: ['id']});
+        options.withRelated = ['posts'];
 
-        options = this.filterOptions(options, 'findOne');
-        data = this.filterData(data, 'findOne');
-
-        var tag = this.forge(data);
-
-        addPostCount(options, tag);
-
-        // Add related objects
-        options.withRelated = _.union(options.withRelated, options.include);
-
-        return tag.fetch(options);
-    },
-
-    findPage: function (options) {
-        options = options || {};
-
-        var tagCollection = Tags.forge(),
-            collectionPromise,
-            qb;
-
-        if (options.limit && options.limit !== 'all') {
-            options.limit = parseInt(options.limit, 10) || 15;
-        }
-
-        if (options.page) {
-            options.page = parseInt(options.page, 10) || 1;
-        }
-
-        options = this.filterOptions(options, 'findPage');
-        // Set default settings for options
-        options = _.extend({
-            page: 1, // pagination page
-            limit: 15,
-            where: {}
-        }, options);
-
-        // only include a limit-query if a numeric limit is provided
-        if (_.isNumber(options.limit)) {
-            tagCollection
-                .query('limit', options.limit)
-                .query('offset', options.limit * (options.page - 1));
-        }
-
-        addPostCount(options, tagCollection);
-
-        collectionPromise = tagCollection.fetch(_.omit(options, 'page', 'limit'));
-
-        // Find total number of tags
-
-        qb = ghostBookshelf.knex('tags');
-
-        if (options.where) {
-            qb.where(options.where);
-        }
-
-        return Promise.join(collectionPromise, qb.count('tags.id as aggregate')).then(function (results) {
-            var totalTags = results[1][0].aggregate,
-                calcPages = Math.ceil(totalTags / options.limit) || 0,
-                tagCollection = results[0],
-                pagination = {},
-                meta = {},
-                data = {};
-
-            pagination.page = options.page;
-            pagination.limit = options.limit;
-            pagination.pages = calcPages === 0 ? 1 : calcPages;
-            pagination.total = totalTags;
-            pagination.next = null;
-            pagination.prev = null;
-
-            data.tags = tagCollection.toJSON();
-            data.meta = meta;
-            meta.pagination = pagination;
-
-            if (pagination.pages > 1) {
-                if (pagination.page === 1) {
-                    pagination.next = pagination.page + 1;
-                } else if (pagination.page === pagination.pages) {
-                    pagination.prev = pagination.page - 1;
-                } else {
-                    pagination.next = pagination.page + 1;
-                    pagination.prev = pagination.page - 1;
+        return this.forge({id: options.id})
+            .fetch(options)
+            .then(function destroyTagsAndPost(tag) {
+                if (!tag) {
+                    return Promise.reject(new common.errors.NotFoundError({
+                        message: common.i18n.t('errors.api.tags.tagNotFound')
+                    }));
                 }
-            }
 
-            return data;
-        })
-        .catch(errors.logAndThrowError);
-    },
-    destroy: function (options) {
-        var id = options.id;
-        options = this.filterOptions(options, 'destroy');
-
-        return this.forge({id: id}).fetch({withRelated: ['posts']}).then(function destroyTagsAndPost(tag) {
-            return tag.related('posts').detach().then(function () {
-                return tag.destroy(options);
+                return tag.related('posts')
+                    .detach(null, options)
+                    .then(function destroyTags() {
+                        return tag.destroy(options);
+                    });
             });
-        });
     }
 });
 

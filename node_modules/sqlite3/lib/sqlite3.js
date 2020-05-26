@@ -1,9 +1,7 @@
-var binary = require('node-pre-gyp');
 var path = require('path');
-var binding_path = binary.find(path.resolve(path.join(__dirname,'../package.json')));
-var binding = require(binding_path);
-var sqlite3 = module.exports = exports = binding;
+var sqlite3 = require('./sqlite3-binding.js');
 var EventEmitter = require('events').EventEmitter;
+module.exports = exports = sqlite3;
 
 function normalizeMethod (fn) {
     return function (sql) {
@@ -19,12 +17,12 @@ function normalizeMethod (fn) {
         }
         var statement = new Statement(this, sql, errBack);
         return fn.call(this, statement, args);
-    }
+    };
 }
 
 function inherits(target, source) {
-  for (var k in source.prototype)
-    target.prototype[k] = source.prototype[k];
+    for (var k in source.prototype)
+        target.prototype[k] = source.prototype[k];
 }
 
 sqlite3.cached = {
@@ -34,17 +32,18 @@ sqlite3.cached = {
             return new Database(file, a, b);
         }
 
+        var db;
         file = path.resolve(file);
+        function cb() { callback.call(db, null); }
 
         if (!sqlite3.cached.objects[file]) {
-            var db =sqlite3.cached.objects[file] = new Database(file, a, b);
+            db = sqlite3.cached.objects[file] = new Database(file, a, b);
         }
         else {
             // Make sure the callback is called.
-            var db = sqlite3.cached.objects[file];
+            db = sqlite3.cached.objects[file];
             var callback = (typeof a === 'number') ? b : a;
             if (typeof callback === 'function') {
-                function cb() { callback.call(db, null); }
                 if (db.open) process.nextTick(cb);
                 else db.once('open', cb);
             }
@@ -58,9 +57,11 @@ sqlite3.cached = {
 
 var Database = sqlite3.Database;
 var Statement = sqlite3.Statement;
+var Backup = sqlite3.Backup;
 
 inherits(Database, EventEmitter);
 inherits(Statement, EventEmitter);
+inherits(Backup, EventEmitter);
 
 // Database#prepare(sql, [bind1, bind2, ...], [callback])
 Database.prototype.prepare = normalizeMethod(function(statement, params) {
@@ -98,6 +99,23 @@ Database.prototype.map = normalizeMethod(function(statement, params) {
     return this;
 });
 
+// Database#backup(filename, [callback])
+// Database#backup(filename, destName, sourceName, filenameIsDest, [callback])
+Database.prototype.backup = function() {
+    var backup;
+    if (arguments.length <= 2) {
+        // By default, we write the main database out to the main database of the named file.
+        // This is the most likely use of the backup api.
+        backup = new Backup(this, arguments[0], 'main', 'main', true, arguments[1]);
+    } else {
+        // Otherwise, give the user full control over the sqlite3_backup_init arguments.
+        backup = new Backup(this, arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    // Per the sqlite docs, exclude the following errors as non-fatal by default.
+    backup.retryErrors = [sqlite3.BUSY, sqlite3.LOCKED];
+    return backup;
+};
+
 Statement.prototype.map = function() {
     var params = Array.prototype.slice.call(arguments);
     var callback = params.pop();
@@ -114,7 +132,7 @@ Statement.prototype.map = function() {
             } else {
                 var value = keys[1];
                 // Value is a plain value
-                for (var i = 0; i < rows.length; i++) {
+                for (i = 0; i < rows.length; i++) {
                     result[rows[i][key]] = rows[i][value];
                 }
             }

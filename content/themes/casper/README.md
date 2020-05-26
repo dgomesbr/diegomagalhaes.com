@@ -1,103 +1,70 @@
-# Ghostium [![Build Status](https://travis-ci.org/oswaldoacauan/ghostium.png)](https://travis-ci.org/oswaldoacauan/ghostium) [![Total views](https://sourcegraph.com/api/repos/github.com/oswaldoacauan/ghostium/counters/views.png)](https://sourcegraph.com/github.com/oswaldoacauan/ghostium)
+# Casper
 
-![Ghostium](http://i.imgur.com/m5VcTBl.png)
+The default theme for [Ghost](http://github.com/tryghost/ghost/). This is the latest development version of Casper! If you're just looking to download the latest release, head over to the [releases](https://github.com/TryGhost/Casper/releases) page.
 
-> A [Ghost](https://ghost.org/) theme focused on content based on [Medium](https://medium.com) design/ux.
+&nbsp;
 
-### [→ Live Demo](http://ghostium.oswaldoacauan.com/)
-### [→ Download](https://github.com/oswaldoacauan/ghostium/archive/master.zip)
+![screenshot-desktop](https://user-images.githubusercontent.com/353959/66987533-40eae100-f0c1-11e9-822e-cbaf38fb8e3f.png)
 
-## Table of contents
+&nbsp;
 
-* [Features](#features)
-* [Installing](#installing)
-* [Configuring](#configuring)
-* [Roadmap](#roadmap)
-* [Contributing](#contributing)
-* [History](#history)
-* [License](#license)
+# First time using a Ghost theme?
 
-## Features
+Ghost uses a simple templating language called [Handlebars](http://handlebarsjs.com/) for its themes.
 
-* Focused on content
-* Fully responsive
-* HTML5 semantics, WAI-ARIA and Rich Snippets(microdata) roles
-* Asynchronous content loading
-* Disqus comments
-* Syntax Highlight with [Prism](http://prismjs.com/)
-* Google Universal Analytics snippet
-* OpenGraph and Twitter Cards meta's
-* Baseline HTML5 features, DNS prefetching, responsive meta
-* One-file CSS/JS for performance
+This theme has lots of code comments to help explain what's going on just by reading the code. Once you feel comfortable with how everything works, we also have full [theme API documentation](https://ghost.org/docs/api/handlebars-themes/) which explains every possible Handlebars helper and template.
 
-## Installing
+**The main files are:**
 
-### Using Git
-1. Navigate to your Ghost theme directory `ghost/content/themes`
-2. Clone the theme repository using the command below
-```sh
-$ git clone https://github.com/oswaldoacauan/ghostium/ "ghostium"
-```
-3. Restart ghost and log in to your dashboard
-4. In settings under themes select **ghostium** and save
-5. That's all, now its time to [configure](#configuring) your theme
+- `default.hbs` - The parent template file, which includes your global header/footer
+- `index.hbs` - The main template to generate a list of posts, usually the home page
+- `post.hbs` - The template used to render individual posts
+- `page.hbs` - Used for individual pages
+- `tag.hbs` - Used for tag archives, eg. "all posts tagged with `news`"
+- `author.hbs` - Used for author archives, eg. "all posts written by Jamie"
+
+One neat trick is that you can also create custom one-off templates by adding the slug of a page to a template file. For example:
+
+- `page-about.hbs` - Custom template for an `/about/` page
+- `tag-news.hbs` - Custom template for `/tag/news/` archive
+- `author-ali.hbs` - Custom template for `/author/ali/` archive
 
 
-### Manually
-1. Download the files using the [GitHub .zip download](https://github.com/oswaldoacauan/ghostium/archive/master.zip) option
-2. Unzip the files and rename the folder to `ghostium`
-4. Copy the folder into your Ghost theme directory `ghost/content/themes`
-5. Restart ghost and log in to your dashboard
-6. In settings under themes select **ghostium** and save
-7. That's all, now its time to [configure](#configuring) your theme
+# Development
 
-## Configuring
+Casper styles are compiled using Gulp/PostCSS to polyfill future CSS spec. You'll need [Node](https://nodejs.org/), [Yarn](https://yarnpkg.com/) and [Gulp](https://gulpjs.com) installed globally. After that, from the theme's root directory:
 
-All configurable files are located in `ghostium/partials/custom`.
+```bash
+# install dependencies
+yarn install
 
-#### config.hbs
-
-Configurable javascript identifiers.
-
-* `ga_ua`: Your [Google Analitycs](https://support.google.com/analytics/answer/1032385) account identifier
-* `disqus_shortname`: Your [Disqus](http://help.disqus.com/customer/portal/articles/466208) unique identifier
-
-#### meta.hbs
-
-Configurable meta tags.
-
-* `twitter:site`: Used for [Twitter Card](https://dev.twitter.com/docs/cards/markup-reference) identification, the twitter @username of the owner of this card's domain
-* `twitter:creator`: Used for [Twitter Card](https://dev.twitter.com/docs/cards/markup-reference) identification, the twitter @username of the author of this content
-* `google-site-verification`: Used for [Google Webmaster Tools](https://support.google.com/webmasters/answer/35179) identification
-* `fb:admins`: Used for [Facebook Insights](https://developers.facebook.com/docs/insights/‎) identification
-
-#### navigation.hbs
-
-Your site navigation items, markup template below.
-```html
-<li class="drawer-list-item">
-  <a href="#" title="My awesome menu">
-    My menu
-  </a>
-</li>
+# run development server
+yarn dev
 ```
 
-## Roadmap
+Now you can edit `/assets/css/` files, which will be compiled to `/assets/built/` automatically.
 
-Many features listed here still depend on future implementations in Ghost, take a look at the their [Roadmap](https://github.com/tryghost/ghost/wiki/Roadmap) and [Planned features](https://github.com/tryghost/ghost/wiki/Planned-Features).
+The `zip` Gulp task packages the theme files into `dist/<theme-name>.zip`, which you can then upload to your site.
 
-- [ ] Cover image for single post
-- [ ] Infinite scroll
-- [ ] Next post cover
+```bash
+# create .zip file
+yarn zip
+```
 
-## Contributing
+# PostCSS Features Used
 
-If you want to help, please read the [Contributing](https://github.com/oswaldoacauan/ghostium/blob/master/CONTRIBUTING.md) guide.
+- Autoprefixer - Don't worry about writing browser prefixes of any kind, it's all done automatically with support for the latest 2 major versions of every browser.
+- Variables - Simple pure CSS variables
+- [Color Function](https://github.com/postcss/postcss-color-function)
 
-## History
 
-For detailed history, see [Changelog](https://github.com/oswaldoacauan/ghostium/blob/master/CHANGELOG.md).
+# SVG Icons
 
-## License
+Casper uses inline SVG icons, included via Handlebars partials. You can find all icons inside `/partials/icons`. To use an icon just include the name of the relevant file, eg. To include the SVG icon in `/partials/icons/rss.hbs` - use `{{> "icons/rss"}}`.
 
-[MIT License](http://oswaldoacauan.mit-license.org/) © Oswaldo Acauan
+You can add your own SVG icons in the same manner.
+
+
+# Copyright & License
+
+Copyright (c) 2013-2020 Ghost Foundation - Released under the [MIT license](LICENSE).

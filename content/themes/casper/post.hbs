@@ -1,111 +1,214 @@
 {{!< default}}
 
-<section class="wrapper wrapper-post">
-  <div class="wrapper-container">
-    <article itemscope itemtype="http://schema.org/BlogPosting" role="article" class="post {{post_class}}">
-      {{#post}}
-        <section class="post-container">
-          <header class="post-header">
-            <ul class="post-meta-list">
-              <li class="post-meta-item">
-                <time datetime="{{date published_at format="YYYY-MM-DD"}}" itemprop="datePublished">
-                  {{date published_at timeago="true"}}
-                </time>
-              </li>
-              {{#if tags}}
-                <li class="post-meta-item">
-                  {{#foreach tags}}
-                    <a itemprop="{{#if @first}}articleSection{{else}}keywords{{/if}}" href="{{url}}" data-pjax>{{name}}</a>
-                    {{~#if @last}} {{else}}, {{/if}}
-                  {{/foreach}}
-                </li>
-              {{/if}}
-              <li class="post-meta-item">
-                <a href="#disqus_thread" data-disqus-identifier="{{id}}">Comments</a>
-              </li>
-            </ul>
-            <h1 itemprop="name headline" class="post-title"><a href="{{url}}" itemprop="url" data-pjax title="{{{title}}}">{{{title}}}</a></h1>
-            {{! A subtitle not available in Ghosts yet }}
-            <!--h2 itemprop="about" class="post-subtitle"></h2-->
-          </header>
-          <aside class="post-side">
-            <div class="post-author">
-              {{#if author.image}}
-                <a href="{{author.website}}" class="post-author-avatar">
-                  <img src="{{author.image}}" alt="{{author.name}}">
-                </a>
-              {{/if}}
-              <div class="post-author-info">
-                <a href="{{author.website}}" class="post-author-name">
-                  {{author.name}}
-                </a>
-                <p class="post-author-bio">{{author.bio}}</p>
-              </div>
-            </div>
-          </aside>
-          <div itemprop="articleBody" class="post-body">
-            {{content}}
-          </div>
-          <footer class="post-footer">
-            <div itemprop="author" itemscope itemtype="http://schema.org/Person" class="post-author">
-              {{#if author.image}}
-                <a href="{{author.website}}" class="post-author-avatar">
-                  <img itemprop="image" src="{{author.image}}" alt="{{author.name}}">
-                </a>
-              {{/if}}
-              <div class="post-author-info">
-                <h4 class="post-footer-heading">Written By</h4>
-                <a href="{{author.website}}" itemprop="url" class="post-author-name">
-                  <span itemprop="name">{{author.name}}</span>
-                </a>
-                <p itemprop="description" class="post-author-bio">{{author.bio}}</p>
-                {{#if author.location}}
-                  <p class="post-author-location">{{author.location}}</p>
+{{!-- The tag above means: insert everything in this file
+into the {body} of the default.hbs template --}}
+
+<header class="site-header">
+    {{> site-header}}
+</header>
+
+{{!-- Everything inside the #post tags pulls data from the post --}}
+{{#post}}
+
+<main id="site-main" class="site-main outer">
+    <div class="inner">
+
+        <article class="post-full {{post_class}} {{#unless feature_image}}no-image{{/unless}}">
+
+            <header class="post-full-header">
+
+                {{#if primary_tag}}
+                <section class="post-full-tags">
+                    {{#primary_tag}}
+                    <a href="{{url}}">{{name}}</a>
+                    {{/primary_tag}}
+                </section>
                 {{/if}}
-                {{#if author.website}}
-                  <p class="post-author-website">
-                    <a href="{{author.website}}" rel="nofollow">{{author.website}}</a>
-                  </p>
+
+                <h1 class="post-full-title">{{title}}</h1>
+
+                {{#if custom_excerpt}}
+                <p class="post-full-custom-excerpt">{{custom_excerpt}}</p>
                 {{/if}}
-                <p class="post-info">
-                  <b class="post-info-title">Published on</b>
-                  <time class="post-date">{{date format='MMMM DD, YYYY'}}</time>
-                </p>
-              </div>
-            </div>
-            <div class="post-social">
-              <h4 class="post-footer-heading">Spread the word</h4>
-              <a href="#" data-action="share-twitter"><i class="fa fa-fw fa-lg fa-twitter"></i></a>
-              <a href="#" data-action="share-facebook"><i class="fa fa-fw fa-lg fa-facebook"></i></a>
-              <a href="#" data-action="share-gplus"><i class="fa fa-fw fa-lg fa-google-plus"></i></a>
-            </div>
-          </footer>
-        </section>
-      {{/post}}
-      <section itemprop="comment" class="post-comments">
-        <div id="disqus_thread"></div>
-      </section>
-    </article>
 
-    {{> footer this}}
-  </div>
-</section>
+                <div class="post-full-byline">
 
-<script type="text/javascript">
-  if(GHOSTIUM.haveDisqus) {
-    {{#post}}
-    var disqus_identifier = '{{id}}';
-    {{/post}}
+                    <section class="post-full-byline-content">
 
-    if(typeof DISQUS !== 'object') {
-      (function () {
-      var s = document.createElement('script'); s.async = true;
-      s.type = 'text/javascript';
-      s.src = '//' + disqus_shortname + '.disqus.com/embed.js';
-      (document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
-      }());
-    }
-  } else {
-    document.querySelector('.post-comments').remove();
-  }
+                        <ul class="author-list">
+                            {{#foreach authors}}
+                            <li class="author-list-item">
+
+                                <div class="author-card">
+                                    {{#if profile_image}}
+                                    <img class="author-profile-image" src="{{img_url profile_image size="xs"}}" alt="{{name}}" />
+                                    {{else}}
+                                    <div class="author-profile-image">{{> "icons/avatar"}}</div>
+                                    {{/if}}
+                                    <div class="author-info">
+                                        {{#if bio}}
+                                        <div class="bio">
+                                            <h2>{{name}}</h2>
+                                            <p>{{bio}}</p>
+                                            <p><a href="{{url}}">More posts</a> by {{name}}.</p>
+                                        </div>
+                                        {{else}}
+                                        <h2>{{name}}</h2>
+                                        <p>Read <a href="{{url}}">more posts</a> by this author.</p>
+                                        {{/if}}
+                                    </div>
+                                </div>
+
+                                {{#if profile_image}}
+                                <a href="{{url}}" class="author-avatar">
+                                    <img class="author-profile-image" src="{{img_url profile_image size="xs"}}" alt="{{name}}" />
+                                </a>
+                                {{else}}
+                                <a href="{{url}}" class="author-avatar author-profile-image">{{> "icons/avatar"}}</a>
+                                {{/if}}
+
+                            </li>
+                            {{/foreach}}
+                        </ul>
+
+                        <section class="post-full-byline-meta">
+                            <h4 class="author-name">{{authors}}</h4>
+                            <div class="byline-meta-content">
+                                <time class="byline-meta-date" datetime="{{date format="YYYY-MM-DD"}}">{{date format="D MMM YYYY"}}</time>
+                                <span class="byline-reading-time"><span class="bull">&bull;</span> {{reading_time}}</span>
+                            </div>
+                        </section>
+
+                    </section>
+
+
+                </div>
+            </header>
+
+            {{#if feature_image}}
+            <figure class="post-full-image">
+                {{!-- This is a responsive image, it loads different sizes depending on device
+                https://medium.freecodecamp.org/a-guide-to-responsive-images-with-ready-to-use-templates-c400bd65c433 --}}
+                <img
+                    srcset="{{img_url feature_image size="s"}} 300w,
+                            {{img_url feature_image size="m"}} 600w,
+                            {{img_url feature_image size="l"}} 1000w,
+                            {{img_url feature_image size="xl"}} 2000w"
+                    sizes="(max-width: 800px) 400px,
+                        (max-width: 1170px) 1170px,
+                            2000px"
+                    src="{{img_url feature_image size="xl"}}"
+                    alt="{{title}}"
+                />
+            </figure>
+            {{/if}}
+
+            <section class="post-full-content">
+                <div class="post-content">
+                    {{content}}
+                </div>
+            </section>
+
+            {{!-- Email subscribe form at the bottom of the page --}}
+            {{#if @labs.members}}
+                {{> subscribe-form}}
+            {{/if}}
+
+            {{!--
+            <section class="post-full-comments">
+                If you want to embed comments, this is a good place to do it!
+            </section>
+            --}}
+
+        </article>
+
+    </div>
+</main>
+
+{{!-- Links to Previous/Next posts --}}
+<aside class="read-next outer">
+    <div class="inner">
+        <div class="read-next-feed">
+            {{#if primary_tag}}
+            {{#get "posts" filter="tags:{{primary_tag.slug}}+id:-{{id}}" limit="3" as |related_posts|}}
+                {{#if related_posts}}
+                <article class="read-next-card">
+                    <header class="read-next-card-header">
+                        {{#../primary_tag}}
+                        <h3><span>More in</span> <a href="{{url}}">{{name}}</a></h3>
+                        {{/../primary_tag}}
+                    </header>
+                    <div class="read-next-card-content">
+                        <ul>
+                            {{#foreach related_posts}}
+                            <li>
+                                <h4><a href="{{url}}">{{title}}</a></h4>
+                                <div class="read-next-card-meta">
+                                    <p><time datetime="{{date format="YYYY-MM-DD"}}">{{date format="D MMM YYYY"}}</time> –
+                                        {{reading_time}}</p>
+                                </div>
+                            </li>
+                            {{/foreach}}
+                        </ul>
+                    </div>
+                    <footer class="read-next-card-footer">
+                        <a href="{{#../primary_tag}}{{url}}{{/../primary_tag}}">{{plural meta.pagination.total empty='No posts' singular='% post' plural='See all % posts'}}
+                            →</a>
+                    </footer>
+                </article>
+                {{/if}}
+            {{/get}}
+            {{/if}}
+
+            {{!-- If there's a next post, display it using the same markup included from - partials/post-card.hbs --}}
+            {{#next_post}}
+                {{> "post-card"}}
+            {{/next_post}}
+
+            {{!-- If there's a previous post, display it using the same markup included from - partials/post-card.hbs --}}
+            {{#prev_post}}
+                {{> "post-card"}}
+            {{/prev_post}}
+        </div>
+    </div>
+</aside>
+
+{{/post}}
+
+{{!-- The #contentFor helper here will send everything inside it up to the matching #block helper found in default.hbs --}}
+{{#contentFor "scripts"}}
+<script>
+    $(document).ready(function () {
+        // FitVids - start
+        var $postContent = $(".post-full-content");
+        $postContent.fitVids();
+        // FitVids - end
+
+        // Replace nav with title on scroll - start
+        Casper.stickyNavTitle({
+            navSelector: '.site-nav-main',
+            titleSelector: '.post-full-title',
+            activeClass: 'nav-post-title-active'
+        });
+        // Replace nav with title on scroll - end
+
+        // Hover on avatar
+        var hoverTimeout;
+        $('.author-list-item').hover(function () {
+            var $this = $(this);
+
+            clearTimeout(hoverTimeout);
+
+            $('.author-card').removeClass('hovered');
+            $(this).children('.author-card').addClass('hovered');
+
+        }, function () {
+            var $this = $(this);
+
+            hoverTimeout = setTimeout(function () {
+                $this.children('.author-card').removeClass('hovered');
+            }, 800);
+        });
+    });
 </script>
+{{/contentFor}}

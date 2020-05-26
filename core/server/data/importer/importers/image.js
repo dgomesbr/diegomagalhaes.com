@@ -1,15 +1,19 @@
-var _       = require('lodash'),
-    Promise = require('bluebird'),
-    storage = require('../../../storage'),
-    replaceImage,
-    ImageImporter,
-    preProcessPosts,
-    preProcessTags,
-    preProcessUsers;
+const _ = require('lodash');
+const Promise = require('bluebird');
+const storage = require('../../../adapters/storage');
+let replaceImage;
+let ImageImporter;
+let preProcessPosts;
+let preProcessTags;
+let preProcessUsers;
 
 replaceImage = function (markdown, image) {
+    if (!markdown) {
+        return;
+    }
+
     // Normalizes to include a trailing slash if there was one
-    var regex = new RegExp('(/)?' + image.originalPath, 'gm');
+    const regex = new RegExp('(/)?' + image.originalPath, 'gm');
 
     return markdown.replace(regex, image.newPath);
 };
@@ -20,27 +24,27 @@ preProcessPosts = function (data, image) {
         if (post.html) {
             post.html = replaceImage(post.html, image);
         }
-        if (post.image) {
-            post.image = replaceImage(post.image, image);
+        if (post.feature_image) {
+            post.feature_image = replaceImage(post.feature_image, image);
         }
     });
 };
 
 preProcessTags = function (data, image) {
     _.each(data.tags, function (tag) {
-        if (tag.image) {
-            tag.image = replaceImage(tag.image, image);
+        if (tag.feature_image) {
+            tag.feature_image = replaceImage(tag.feature_image, image);
         }
     });
 };
 
 preProcessUsers = function (data, image) {
     _.each(data.users, function (user) {
-        if (user.cover) {
-            user.cover = replaceImage(user.cover, image);
+        if (user.cover_image) {
+            user.cover_image = replaceImage(user.cover_image, image);
         }
-        if (user.image) {
-            user.image = replaceImage(user.image, image);
+        if (user.profile_image) {
+            user.profile_image = replaceImage(user.profile_image, image);
         }
     });
 };
@@ -60,7 +64,7 @@ ImageImporter = {
         return importData;
     },
     doImport: function (imageData) {
-        var store = storage.getStorage();
+        const store = storage.getStorage();
 
         return Promise.map(imageData, function (image) {
             return store.save(image, image.targetDir).then(function (result) {

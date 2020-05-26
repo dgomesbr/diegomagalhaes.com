@@ -1,38 +1,38 @@
-var _            = require('lodash'),
-    Promise      = require('bluebird'),
-    sequence     = require('../../utils/sequence'),
-    pipeline     = require('../../utils/pipeline'),
-    fs           = require('fs-extra'),
-    path         = require('path'),
-    os           = require('os'),
-    glob         = require('glob'),
-    uuid         = require('node-uuid'),
-    extract      = require('extract-zip'),
-    errors       = require('../../errors'),
-    ImageHandler    = require('./handlers/image'),
-    JSONHandler     = require('./handlers/json'),
-    MarkdownHandler = require('./handlers/markdown'),
-    ImageImporter   = require('./importers/image'),
-    DataImporter    = require('./importers/data'),
+const _ = require('lodash');
+const Promise = require('bluebird');
+const fs = require('fs-extra');
+const path = require('path');
+const os = require('os');
+const glob = require('glob');
+const uuid = require('uuid');
+const {extract} = require('@tryghost/zip');
+const sequence = require('../../lib/promise/sequence');
+const pipeline = require('../../lib/promise/pipeline');
+const common = require('../../lib/common');
+const ImageHandler = require('./handlers/image');
+const JSONHandler = require('./handlers/json');
+const MarkdownHandler = require('./handlers/markdown');
+const ImageImporter = require('./importers/image');
+const DataImporter = require('./importers/data');
 
-    // Glob levels
-    ROOT_ONLY = 0,
-    ROOT_OR_SINGLE_DIR = 1,
-    ALL_DIRS = 2,
+// Glob levels
+const ROOT_ONLY = 0;
 
-    defaults;
+const ROOT_OR_SINGLE_DIR = 1;
+const ALL_DIRS = 2;
+let defaults;
 
 defaults = {
     extensions: ['.zip'],
-    types: ['application/zip', 'application/x-zip-compressed'],
+    contentTypes: ['application/zip', 'application/x-zip-compressed'],
     directories: []
 };
 
 function ImportManager() {
     this.importers = [ImageImporter, DataImporter];
     this.handlers = [ImageHandler, JSONHandler, MarkdownHandler];
-    // Keep track of files to cleanup at the end
-    this.filesToDelete = [];
+    // Keep track of file to cleanup at the end
+    this.fileToDelete = null;
 }
 
 /**
@@ -48,21 +48,21 @@ _.extend(ImportManager.prototype, {
      * @returns {string[]}
      */
     getExtensions: function () {
-        return _.flatten(_.union(_.pluck(this.handlers, 'extensions'), defaults.extensions));
+        return _.flatten(_.union(_.map(this.handlers, 'extensions'), defaults.extensions));
     },
     /**
      * Get an array of all the mime types for which we have handlers
      * @returns {string[]}
      */
-    getTypes: function () {
-        return _.flatten(_.union(_.pluck(this.handlers, 'types'), defaults.types));
+    getContentTypes: function () {
+        return _.flatten(_.union(_.map(this.handlers, 'contentTypes'), defaults.contentTypes));
     },
     /**
      * Get an array of directories for which we have handlers
      * @returns {string[]}
      */
     getDirectories: function () {
-        return _.flatten(_.union(_.pluck(this.handlers, 'directories'), defaults.directories));
+        return _.flatten(_.union(_.map(this.handlers, 'directories'), defaults.directories));
     },
     /**
      * Convert items into a glob string
@@ -71,7 +71,7 @@ _.extend(ImportManager.prototype, {
      */
     getGlobPattern: function (items) {
         return '+(' + _.reduce(items, function (memo, ext) {
-            return memo !== '' ? memo + '|'  + ext : ext;
+            return memo !== '' ? memo + '|' + ext : ext;
         }, '') + ')';
     },
     /**
@@ -80,7 +80,7 @@ _.extend(ImportManager.prototype, {
      * @returns {String}
      */
     getExtensionGlob: function (extensions, level) {
-        var prefix = level === ALL_DIRS ? '**/*' :
+        const prefix = level === ALL_DIRS ? '**/*' :
             (level === ROOT_OR_SINGLE_DIR ? '{*/*,*}' : '*');
 
         return prefix + this.getGlobPattern(extensions);
@@ -92,7 +92,7 @@ _.extend(ImportManager.prototype, {
      * @returns {String}
      */
     getDirectoryGlob: function (directories, level) {
-        var prefix = level === ALL_DIRS ? '**/' :
+        const prefix = level === ALL_DIRS ? '**/' :
             (level === ROOT_OR_SINGLE_DIR ? '{*/,}' : '');
 
         return prefix + this.getGlobPattern(directories);
@@ -102,25 +102,30 @@ _.extend(ImportManager.prototype, {
      * @returns {Function}
      */
     cleanUp: function () {
-        var filesToDelete = this.filesToDelete;
-        return function (result) {
-            _.each(filesToDelete, function (fileToDelete) {
-                fs.remove(fileToDelete, function (err) {
-                    if (err) {
-                        errors.logError(err, 'Import could not clean up file ', 'Your blog will continue to work as expected');
-                    }
-                });
-            });
+        const self = this;
 
-            return result;
-        };
+        if (self.fileToDelete === null) {
+            return;
+        }
+
+        fs.remove(self.fileToDelete, function (err) {
+            if (err) {
+                common.logging.error(new common.errors.GhostError({
+                    err: err,
+                    context: common.i18n.t('errors.data.importer.index.couldNotCleanUpFile.error'),
+                    help: common.i18n.t('errors.data.importer.index.couldNotCleanUpFile.context')
+                }));
+            }
+
+            self.fileToDelete = null;
+        });
     },
     /**
      * Return true if the given file is a Zip
      * @returns Boolean
      */
     isZip: function (ext) {
-        return _.contains(defaults.extensions, ext);
+        return _.includes(defaults.extensions, ext);
     },
     /**
      * Checks the content of a zip folder to see if it is valid.
@@ -132,23 +137,22 @@ _.extend(ImportManager.prototype, {
      */
     isValidZip: function (directory) {
         // Globs match content in the root or inside a single directory
-        var extMatchesBase = glob.sync(
-                this.getExtensionGlob(this.getExtensions(), ROOT_OR_SINGLE_DIR), {cwd: directory}
-            ),
-            extMatchesAll = glob.sync(
-                this.getExtensionGlob(this.getExtensions(), ALL_DIRS), {cwd: directory}
-            ),
-            dirMatches = glob.sync(
-                this.getDirectoryGlob(this.getDirectories(), ROOT_OR_SINGLE_DIR), {cwd: directory}
-            ),
-            oldRoonMatches = glob.sync(this.getDirectoryGlob(['drafts', 'published', 'deleted'], ROOT_OR_SINGLE_DIR),
-                {cwd: directory});
+        const extMatchesBase = glob.sync(this.getExtensionGlob(this.getExtensions(), ROOT_OR_SINGLE_DIR), {cwd: directory});
+
+        const extMatchesAll = glob.sync(
+            this.getExtensionGlob(this.getExtensions(), ALL_DIRS), {cwd: directory}
+        );
+
+        const dirMatches = glob.sync(
+            this.getDirectoryGlob(this.getDirectories(), ROOT_OR_SINGLE_DIR), {cwd: directory}
+        );
+
+        const oldRoonMatches = glob.sync(this.getDirectoryGlob(['drafts', 'published', 'deleted'], ROOT_OR_SINGLE_DIR),
+            {cwd: directory});
 
         // This is a temporary extra message for the old format roon export which doesn't work with Ghost
         if (oldRoonMatches.length > 0) {
-            throw new errors.UnsupportedMediaTypeError(
-                'Your zip file looks like an old format Roon export, please re-export your Roon blog and try again.'
-            );
+            throw new common.errors.UnsupportedMediaTypeError({message: common.i18n.t('errors.data.importer.index.unsupportedRoonExport')});
         }
 
         // If this folder contains importable files or a content or images directory
@@ -157,10 +161,10 @@ _.extend(ImportManager.prototype, {
         }
 
         if (extMatchesAll.length < 1) {
-            throw new errors.UnsupportedMediaTypeError('Zip did not include any content to import.');
+            throw new common.errors.UnsupportedMediaTypeError({message: common.i18n.t('errors.data.importer.index.noContentToImport')});
         }
 
-        throw new errors.UnsupportedMediaTypeError('Invalid zip file structure.');
+        throw new common.errors.UnsupportedMediaTypeError({message: common.i18n.t('errors.data.importer.index.invalidZipStructure')});
     },
     /**
      * Use the extract module to extract the given zip file to a temp directory & return the temp directory path
@@ -168,9 +172,10 @@ _.extend(ImportManager.prototype, {
      * @returns {Promise[]} Files
      */
     extractZip: function (filePath) {
-        var tmpDir = path.join(os.tmpdir(), uuid.v4());
-        this.filesToDelete.push(tmpDir);
-        return Promise.promisify(extract)(filePath, {dir: tmpDir}).then(function () {
+        const tmpDir = path.join(os.tmpdir(), uuid.v4());
+        this.fileToDelete = tmpDir;
+
+        return extract(filePath, tmpDir).then(function () {
             return tmpDir;
         });
     },
@@ -182,7 +187,7 @@ _.extend(ImportManager.prototype, {
      * @returns [] Files
      */
     getFilesFromZip: function (handler, directory) {
-        var globPattern = this.getExtensionGlob(handler.extensions, ALL_DIRS);
+        const globPattern = this.getExtensionGlob(handler.extensions, ALL_DIRS);
         return _.map(glob.sync(globPattern, {cwd: directory}), function (file) {
             return {name: file, path: path.join(directory, file)};
         });
@@ -194,9 +199,10 @@ _.extend(ImportManager.prototype, {
      */
     getBaseDirectory: function (directory) {
         // Globs match root level only
-        var extMatches = glob.sync(this.getExtensionGlob(this.getExtensions(), ROOT_ONLY), {cwd: directory}),
-            dirMatches = glob.sync(this.getDirectoryGlob(this.getDirectories(), ROOT_ONLY), {cwd: directory}),
-            extMatchesAll;
+        const extMatches = glob.sync(this.getExtensionGlob(this.getExtensions(), ROOT_ONLY), {cwd: directory});
+
+        const dirMatches = glob.sync(this.getDirectoryGlob(this.getDirectories(), ROOT_ONLY), {cwd: directory});
+        let extMatchesAll;
 
         // There is no base directory
         if (extMatches.length > 0 || dirMatches.length > 0) {
@@ -207,7 +213,7 @@ _.extend(ImportManager.prototype, {
             this.getExtensionGlob(this.getExtensions(), ALL_DIRS), {cwd: directory}
         );
         if (extMatchesAll.length < 1 || extMatchesAll[0].split('/') < 1) {
-            throw new errors.ValidationError('Invalid zip file: base directory read failed');
+            throw new common.errors.ValidationError({message: common.i18n.t('errors.data.importer.index.invalidZipFileBaseDirectory')});
         }
 
         return extMatchesAll[0].split('/')[0];
@@ -222,25 +228,25 @@ _.extend(ImportManager.prototype, {
      * @returns {Promise(ImportData)}
      */
     processZip: function (file) {
-        var self = this;
+        const self = this;
 
         return this.extractZip(file.path).then(function (zipDirectory) {
-            var ops = [],
-                importData = {},
-                baseDir;
+            const ops = [];
+            const importData = {};
+            let baseDir;
 
             self.isValidZip(zipDirectory);
             baseDir = self.getBaseDirectory(zipDirectory);
 
             _.each(self.handlers, function (handler) {
-                if (importData.hasOwnProperty(handler.type)) {
+                if (Object.prototype.hasOwnProperty.call(importData, handler.type)) {
                     // This limitation is here to reduce the complexity of the importer for now
-                    return Promise.reject(new errors.UnsupportedMediaTypeError(
-                        'Zip file contains multiple data formats. Please split up and import separately.'
-                    ));
+                    return Promise.reject(new common.errors.UnsupportedMediaTypeError({
+                        message: common.i18n.t('errors.data.importer.index.zipContainsMultipleDataFormats')
+                    }));
                 }
 
-                var files = self.getFilesFromZip(handler, zipDirectory);
+                const files = self.getFilesFromZip(handler, zipDirectory);
 
                 if (files.length > 0) {
                     ops.push(function () {
@@ -252,9 +258,9 @@ _.extend(ImportManager.prototype, {
             });
 
             if (ops.length === 0) {
-                return Promise.reject(new errors.UnsupportedMediaTypeError(
-                    'Zip did not include any content to import.'
-                ));
+                return Promise.reject(new common.errors.UnsupportedMediaTypeError({
+                    message: common.i18n.t('errors.data.importer.index.noContentToImport')
+                }));
             }
 
             return sequence(ops).then(function () {
@@ -272,13 +278,13 @@ _.extend(ImportManager.prototype, {
      * @returns {Promise(ImportData)}
      */
     processFile: function (file, ext) {
-        var fileHandler = _.find(this.handlers, function (handler) {
-            return _.contains(handler.extensions, ext);
+        const fileHandler = _.find(this.handlers, function (handler) {
+            return _.includes(handler.extensions, ext);
         });
 
         return fileHandler.loadFile([_.pick(file, 'name', 'path')]).then(function (loadedData) {
             // normalize the returned data
-            var importData = {};
+            const importData = {};
             importData[fileHandler.type] = loadedData;
             return importData;
         });
@@ -291,11 +297,8 @@ _.extend(ImportManager.prototype, {
      * @returns {Promise}
      */
     loadFile: function (file) {
-        var self = this,
-            ext = path.extname(file.name).toLowerCase();
-
-        this.filesToDelete.push(file.path);
-
+        const self = this;
+        const ext = path.extname(file.name).toLowerCase();
         return this.isZip(ext) ? self.processZip(file) : self.processFile(file, ext);
     },
     /**
@@ -306,7 +309,7 @@ _.extend(ImportManager.prototype, {
      * @returns {Promise(ImportData)}
      */
     preProcess: function (importData) {
-        var ops = [];
+        const ops = [];
         _.each(this.importers, function (importer) {
             ops.push(function () {
                 return importer.preProcess(importData);
@@ -320,14 +323,16 @@ _.extend(ImportManager.prototype, {
      * Each importer gets passed the data from importData which has the key matching its type - i.e. it only gets the
      * data that it should import. Each importer then handles actually importing that data into Ghost
      * @param {ImportData} importData
+     * @param {importOptions} importOptions to allow override of certain import features such as locking a user
      * @returns {Promise(ImportData)}
      */
-    doImport: function (importData) {
-        var ops = [];
+    doImport: function (importData, importOptions) {
+        importOptions = importOptions || {};
+        const ops = [];
         _.each(this.importers, function (importer) {
-            if (importData.hasOwnProperty(importer.type)) {
+            if (Object.prototype.hasOwnProperty.call(importData, importer.type)) {
                 ops.push(function () {
-                    return importer.doImport(importData[importer.type]);
+                    return importer.doImport(importData[importer.type], importOptions);
                 });
             }
         });
@@ -349,10 +354,11 @@ _.extend(ImportManager.prototype, {
      * Import From File
      * The main method of the ImportManager, call this to kick everything off!
      * @param {File} file
+     * @param {importOptions} importOptions to allow override of certain import features such as locking a user
      * @returns {Promise}
      */
-    importFromFile: function (file) {
-        var self = this;
+    importFromFile: function (file, importOptions = {}) {
+        const self = this;
 
         // Step 1: Handle converting the file to usable data
         return this.loadFile(file).then(function (importData) {
@@ -361,13 +367,11 @@ _.extend(ImportManager.prototype, {
         }).then(function (importData) {
             // Step 3: Actually do the import
             // @TODO: It would be cool to have some sort of dry run flag here
-            return self.doImport(importData);
+            return self.doImport(importData, importOptions);
         }).then(function (importData) {
             // Step 4: Report on the import
-            return self.generateReport(importData)
-                // Step 5: Cleanup any files
-                .finally(self.cleanUp());
-        });
+            return self.generateReport(importData);
+        }).finally(() => self.cleanUp()); // Step 5: Cleanup any files
     }
 });
 
