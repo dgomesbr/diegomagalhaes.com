@@ -125,7 +125,7 @@
     "sanitize-html": "1.23.0",
     "semver": "7.3.2",
     "uuid": "8.0.0",
-    "validator": "6.3.0",
+    "validator": "13.7.0",
     "xml": "1.0.1",
     "ghost-storage-adapter-s3": "^2.8.0",
     "ghost-storage-cloudinary": "^2.0.2"
